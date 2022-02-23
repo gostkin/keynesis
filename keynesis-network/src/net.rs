@@ -315,7 +315,11 @@ impl Connection {
             .context("Cannot connect to remote peer address")?;
 
         for socket_addr in peer_addrs {
-            match Self::connect_to(&mut rng, k, socket_addr, rs).await {
+            let stream = TcpStream::connect(socket_addr)
+                .await
+                .with_context(|| format!("Cannot connect to peer {}", peer_addr))?;
+
+            match Self::connect_to(&mut rng, k, stream, socket_addr, rs).await {
                 Ok(connection) => return Ok(connection),
                 Err(error) => {
                     tracing::info!(reason = ?error, "Failed to connect to {} with {}", peer_addr, socket_addr);
