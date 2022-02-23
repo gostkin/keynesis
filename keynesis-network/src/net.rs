@@ -266,6 +266,7 @@ impl Connection {
     pub async fn connect_to<RNG, K>(
         rng: RNG,
         k: &K,
+        stream: TcpStream,
         peer_addr: SocketAddr,
         rs: PublicKey,
     ) -> Result<Self>
@@ -273,10 +274,6 @@ impl Connection {
         RNG: CryptoRng + RngCore,
         K: Dh,
     {
-        let stream = TcpStream::connect(peer_addr)
-            .await
-            .with_context(|| format!("Cannot connect to peer {}", peer_addr))?;
-
         let (reader, writer) = stream.into_split();
 
         let handle = Handle::open(rng, k, rs, reader, writer)
