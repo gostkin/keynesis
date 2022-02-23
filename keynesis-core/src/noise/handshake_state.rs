@@ -152,8 +152,8 @@ where
     ) -> Result<(), HandshakeStateError> {
         let mut buffer = [0; u16::MAX as usize];
         let len = self.encrypted_len(plaintext.len());
-        let mut tag = &mut buffer[..len];
-        let len = self.symmetric_state.encrypt_and_hash(plaintext, &mut tag)?;
+        let tag = &mut buffer[..len];
+        let len = self.symmetric_state.encrypt_and_hash(plaintext, tag)?;
         output.write_all(&buffer[..len])?;
         Ok(())
     }

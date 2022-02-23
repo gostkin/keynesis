@@ -262,21 +262,18 @@ impl Connection {
     /// that will be used only for this connection and the given key `k` to authenticate
     /// ourself to the remote.
     ///
-    #[tracing::instrument(skip(k, rng), level = "info")]
-    pub async fn connect_to<RNG, K>(
-        rng: RNG,
-        k: &K,
-        stream: TcpStream,
-        peer_addr: SocketAddr,
-        rs: PublicKey,
-    ) -> Result<Self>
+    #[tracing::instrument(skip(k), level = "info")]
+    pub async fn connect_to<K>(k: &K, peer_addr: SocketAddr, rs: PublicKey) -> Result<Self>
     where
-        RNG: CryptoRng + RngCore,
         K: Dh,
     {
+        let stream = TcpStream::connect(peer_addr)
+            .await
+            .with_context(|| format!("Cannot connect to peer {}", peer_addr))?;
+
         let (reader, writer) = stream.into_split();
 
-        let handle = Handle::open(rng, k, rs, reader, writer)
+        let handle = Handle::open(k, rs, reader, writer)
             .await
             .with_context(|| format!("Failed to handshake with peer {}", peer_addr))?;
 
@@ -298,15 +295,9 @@ impl Connection {
     /// The function will returns at the first successful attempt or once all the possible options
     /// have been tried and failed.
     ///
-    #[tracing::instrument(skip(k, rng), level = "info")]
-    pub async fn connect<RNG, K, A>(
-        mut rng: RNG,
-        k: &K,
-        peer_addr: A,
-        rs: PublicKey,
-    ) -> Result<Self>
+    #[tracing::instrument(skip(k), level = "info")]
+    pub async fn connect<K, A>(k: &K, peer_addr: A, rs: PublicKey) -> Result<Self>
     where
-        RNG: RngCore + CryptoRng,
         A: ToSocketAddrs + Display + fmt::Debug,
         K: Dh,
     {
@@ -315,11 +306,7 @@ impl Connection {
             .context("Cannot connect to remote peer address")?;
 
         for socket_addr in peer_addrs {
-            let stream = TcpStream::connect(socket_addr)
-                .await
-                .with_context(|| format!("Cannot connect to peer {}", peer_addr))?;
-
-            match Self::connect_to(&mut rng, k, stream, socket_addr, rs).await {
+            match Self::connect_to(k, socket_addr, rs).await {
                 Ok(connection) => return Ok(connection),
                 Err(error) => {
                     tracing::info!(reason = ?error, "Failed to connect to {} with {}", peer_addr, socket_addr);

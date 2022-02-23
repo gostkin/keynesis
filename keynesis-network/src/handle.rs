@@ -140,12 +140,11 @@ where
     /// We will generate an ephemeral key, the `rng` will do that at the appropriate
     /// time.
     ///
-    pub async fn open<K, RNG>(rng: RNG, k: &K, rs: PublicKey, reader: I, writer: O) -> Result<Self>
+    pub async fn open<K>(k: &K, rs: PublicKey, reader: I, writer: O) -> Result<Self>
     where
         K: Dh,
-        RNG: RngCore + CryptoRng,
     {
-        let opening = Opening::new(rng, k, rs, reader, writer).await?;
+        let opening = Opening::new(k, rs, reader, writer).await?;
         opening.wait(k).await
     }
 

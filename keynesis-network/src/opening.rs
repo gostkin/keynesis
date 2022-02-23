@@ -11,30 +11,24 @@ use keynesis_core::{
     },
     noise::{ik::WaitB, IK},
 };
-use rand_core::{CryptoRng, RngCore};
+use rand::rngs::ThreadRng;
+use rand::thread_rng;
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 
-pub struct Opening<I, O, RNG, K = ed25519::SecretKey> {
+pub struct Opening<I, O, K = ed25519::SecretKey> {
     reader: I,
     writer: O,
-    state: IK<K, Blake2b, RNG, WaitB>,
+    state: IK<K, Blake2b, ThreadRng, WaitB>,
 }
 
-impl<I, O, RNG, K> Opening<I, O, RNG, K>
+impl<I, O, K> Opening<I, O, K>
 where
     O: AsyncWrite + Unpin,
     K: Dh,
-    RNG: CryptoRng + RngCore,
 {
-    pub(crate) async fn new(
-        rng: RNG,
-        k: &K,
-        rs: PublicKey,
-        reader: I,
-        mut writer: O,
-    ) -> Result<Self> {
+    pub(crate) async fn new(k: &K, rs: PublicKey, reader: I, mut writer: O) -> Result<Self> {
         let mut message = HandshakeInitialize::DEFAULT;
-        let ik = IK::new(rng, &[]);
+        let ik = IK::new(thread_rng(), &[]);
 
         let state = ik
             .initiate(k, rs, message.message_mut())
@@ -53,12 +47,11 @@ where
     }
 }
 
-impl<I, O, RNG, K> Opening<I, O, RNG, K>
+impl<I, O, K> Opening<I, O, K>
 where
     I: AsyncRead + Unpin,
     O: AsyncWrite + Unpin,
     K: Dh,
-    RNG: CryptoRng + RngCore,
 {
     pub(crate) async fn wait(self, k: &K) -> Result<Handle<I, O>> {
         let Self {
